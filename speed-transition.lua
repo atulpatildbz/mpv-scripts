@@ -16,6 +16,13 @@ subPattern = "^[#♯♩♪♬♫🎵🎶%[%(]+.*[#♯♩♪♬♫🎵🎶%]%)]+$
 
 readahead_secs = mp.get_property_native("demuxer-readahead-secs")
 normalspeed=mp.get_property_native("speed")
+-- variable for interval in seconds to sync audio and video
+sync_audio_and_video_interval = 60
+
+function sync_audio_and_video()
+    -- sync audio and video by going back by 0.1 seconds
+      mp.commandv("seek", -0.1, "relative", "exact")
+end
 
 function shouldIgnore(subtext)
    if ignorePattern and subtext and subtext~="" then
@@ -254,12 +261,21 @@ function toggle()
       mp.set_property("demuxer-readahead-secs",lookahead+leadin)
       mp.observe_property("sub-text", "native", speed_transition)
       mp.osd_message("speed-transition enabled")
+      -- call sync_audio_and_video() every sync_audio_and_video_interval
+      if sync_audio_and_video_interval > 0 then
+         sync_audio_and_video_timer = mp.add_periodic_timer(sync_audio_and_video_interval, sync_audio_and_video)
+      end
    else
       restore_normalspeed()
       mp.set_property("demuxer-readahead-secs",readahead_secs)
       mp.unobserve_property(speed_transition)
       mp.unobserve_property(check_position)
       mp.osd_message("speed-transition disabled")
+      -- clear the timer
+      if sync_audio_and_video_timer then
+         sync_audio_and_video_timer:kill()
+         sync_audio_and_video_timer = nil
+      end
    end
    state = 0
    enable = not enable
